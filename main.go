@@ -2,14 +2,13 @@ package main
 
 import (
 	"fmt"
-	"github.com/Advik-B/cloudscraper/scraper"
 	"io"
 	"log"
 )
 
 func main() {
 	// Create a new scraper with default settings
-	sc, err := scraper.New()
+	sc, err := New()
 	if err != nil {
 		log.Fatalf("Failed to create scraper: %v", err)
 	}
