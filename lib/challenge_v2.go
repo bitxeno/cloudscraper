@@ -2,6 +2,7 @@ package cloudscraper
 
 import (
 	"fmt"
+	"log"
 	"regexp"
 	"strings"
 
@@ -12,7 +13,7 @@ import (
 var v2ScriptRegex = regexp.MustCompile(`(?s)<script[^>]*>(.*?window\._cf_chl_opt.*?)<\/script>`)
 
 // solveV2Logic solves modern v2/v3 challenges by delegating to the appropriate JS engine implementation.
-func solveV2Logic(body, domain string, engine js.Engine) (string, error) {
+func solveV2Logic(body, domain string, engine js.Engine, logger *log.Logger) (string, error) {
 	scriptMatches := v2ScriptRegex.FindAllStringSubmatch(body, -1)
 	if len(scriptMatches) == 0 {
 		return "", fmt.Errorf("could not find modern JS challenge scripts")
@@ -20,7 +21,7 @@ func solveV2Logic(body, domain string, engine js.Engine) (string, error) {
 
 	// Use a special synchronous path for Otto, which can't handle async setTimeout.
 	if ottoEngine, ok := engine.(*js.OttoEngine); ok {
-		return ottoEngine.SolveV2Challenge(body, domain, scriptMatches)
+		return ottoEngine.SolveV2Challenge(body, domain, scriptMatches, logger)
 	}
 
 	// Use a modern asynchronous path for external runtimes (node, deno, bun).
