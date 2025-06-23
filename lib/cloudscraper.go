@@ -2,14 +2,8 @@ package cloudscraper
 
 import (
 	"fmt"
-	"github.com/Advik-B/cloudscraper/captcha"
-	"github.com/Advik-B/cloudscraper/errors"
-	"github.com/Advik-B/cloudscraper/proxy"
-	"github.com/Advik-B/cloudscraper/stealth"
-	"github.com/Advik-B/cloudscraper/transport"
-	"github.com/Advik-B/cloudscraper/user_agent"
 	"io"
-	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -17,6 +11,14 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/Advik-B/cloudscraper/lib/captcha"
+	"github.com/Advik-B/cloudscraper/lib/errors"
+	"github.com/Advik-B/cloudscraper/lib/js"
+	"github.com/Advik-B/cloudscraper/lib/proxy"
+	"github.com/Advik-B/cloudscraper/lib/stealth"
+	"github.com/Advik-B/cloudscraper/lib/transport"
+	"github.com/Advik-B/cloudscraper/lib/user_agent"
 
 	"github.com/andybalholm/brotli"
 	"golang.org/x/net/publicsuffix"
@@ -26,11 +28,13 @@ import (
 type Scraper struct {
 	client *http.Client
 	opts   Options
+	logger *log.Logger
 
 	UserAgent     *useragent.Agent
 	CaptchaSolver captcha.Solver
 	ProxyManager  *proxy.Manager
 	StealthMode   *stealth.Mode
+	jsEngine      js.Engine
 
 	mu               sync.Mutex
 	sessionStartTime time.Time
@@ -53,6 +57,7 @@ func New(opts ...ScraperOption) (*Scraper, error) {
 			RandomizeHeaders: true,
 			BrowserQuirks:    true,
 		},
+		JSRuntime: js.Otto, // Default to the built-in engine
 	}
 
 	for _, opt := range opts {
@@ -80,6 +85,27 @@ func New(opts ...ScraperOption) (*Scraper, error) {
 		}
 	}
 
+	var logger *log.Logger
+	if options.Logger != nil {
+		logger = options.Logger
+	} else {
+		// Default to a silent logger if none is provided.
+		logger = log.New(io.Discard, "", 0)
+	}
+
+	var jsEngine js.Engine
+	switch options.JSRuntime {
+	case js.Node, js.Deno, js.Bun:
+		jsEngine, err = js.NewExternalEngine(string(options.JSRuntime))
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize JS runtime: %w", err)
+		}
+	case js.Otto, "": // Default to otto
+		jsEngine = js.NewOttoEngine()
+	default:
+		return nil, fmt.Errorf("unsupported JS runtime: %s", options.JSRuntime)
+	}
+
 	s := &Scraper{
 		client: &http.Client{
 			Jar:       jar,
@@ -87,12 +113,15 @@ func New(opts ...ScraperOption) (*Scraper, error) {
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
 				return http.ErrUseLastResponse
 			},
+			Timeout: 30 * time.Second, // Add a default timeout
 		},
 		opts:             options,
 		UserAgent:        agent,
 		CaptchaSolver:    options.CaptchaSolver,
 		ProxyManager:     pm,
 		StealthMode:      stealth.New(options.Stealth),
+		jsEngine:         jsEngine,
+		logger:           logger,
 		sessionStartTime: time.Now(),
 	}
 
@@ -122,7 +151,7 @@ func (s *Scraper) do(req *http.Request) (*http.Response, error) {
 	s.mu.Lock()
 	if s.shouldRefreshSession() {
 		if err := s.refreshSession(req.URL); err != nil {
-			fmt.Printf("Warning: session refresh failed: %v\n", err)
+			s.logger.Printf("Warning: session refresh failed: %v\n", err)
 		}
 	}
 	s.mu.Unlock()
@@ -161,29 +190,21 @@ func (s *Scraper) do(req *http.Request) (*http.Response, error) {
 		s.ProxyManager.ReportSuccess(currentProxy)
 	}
 
-	// =========================================================================
-	// NEW: Decompression Logic
-	// =========================================================================
-	// Check the content encoding and wrap the body in a decompressing reader if necessary.
-	// Go's http.Client handles gzip automatically, but not brotli.
 	switch resp.Header.Get("Content-Encoding") {
 	case "br":
-		// Replace the response body with a brotli decompressor
 		resp.Body = io.NopCloser(brotli.NewReader(resp.Body))
-		// Remove the header to prevent the client from trying to decompress again
 		resp.Header.Del("Content-Encoding")
 	}
-	// =========================================================================
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	resp.Body.Close()
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
-	resp.Body = ioutil.NopCloser(strings.NewReader(string(bodyBytes)))
+	resp.Body = io.NopCloser(strings.NewReader(string(bodyBytes)))
 
 	if isChallengeResponse(resp, bodyBytes) {
-		fmt.Println("Cloudflare protection detected, attempting to bypass...")
+		s.logger.Println("Cloudflare protection detected, attempting to bypass...")
 		return s.handleChallenge(resp)
 	}
 
@@ -220,7 +241,7 @@ func (s *Scraper) handle403(req *http.Request) (*http.Response, error) {
 	}()
 
 	for i := 0; i < s.opts.Max403Retries; i++ {
-		fmt.Printf("Received 403. Refreshing session (attempt %d/%d)...\n", i+1, s.opts.Max403Retries)
+		s.logger.Printf("Received 403. Refreshing session (attempt %d/%d)...\n", i+1, s.opts.Max403Retries)
 		if err := s.refreshSession(req.URL); err != nil {
 			return nil, fmt.Errorf("failed to refresh session after 403: %w", err)
 		}
@@ -239,7 +260,7 @@ func (s *Scraper) shouldRefreshSession() bool {
 }
 
 func (s *Scraper) refreshSession(currentURL *url.URL) error {
-	fmt.Println("Refreshing session...")
+	s.logger.Println("Refreshing session...")
 	s.sessionStartTime = time.Now()
 	atomic.StoreInt32(&s.requestCount, 0)
 

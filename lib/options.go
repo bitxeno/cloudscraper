@@ -1,11 +1,14 @@
 package cloudscraper
 
 import (
-	"github.com/Advik-B/cloudscraper/captcha"
-	"github.com/Advik-B/cloudscraper/proxy"
-	"github.com/Advik-B/cloudscraper/stealth"
-	"github.com/Advik-B/cloudscraper/user_agent"
+	useragent "github.com/Advik-B/cloudscraper/lib/user_agent"
+	"log"
 	"time"
+
+	"github.com/Advik-B/cloudscraper/lib/captcha"
+	"github.com/Advik-B/cloudscraper/lib/js"
+	"github.com/Advik-B/cloudscraper/lib/proxy"
+	"github.com/Advik-B/cloudscraper/lib/stealth"
 )
 
 // Options holds all configuration for the scraper.
@@ -23,7 +26,9 @@ type Options struct {
 		Strategy proxy.Strategy
 		BanTime  time.Duration
 	}
-	Stealth stealth.Options
+	Stealth   stealth.Options
+	JSRuntime js.Runtime // "otto", "node", "deno", "bun"
+	Logger    *log.Logger
 }
 
 // ScraperOption configures a Scraper.
@@ -72,5 +77,22 @@ func WithSessionConfig(refreshOn403 bool, interval time.Duration, maxRetries int
 func WithDelay(d time.Duration) ScraperOption {
 	return func(o *Options) {
 		o.Delay = d
+	}
+}
+
+// WithJSRuntime sets the JavaScript runtime to use for solving challenges.
+// Supported values are js.Otto (default), js.Node, js.Deno, js.Bun.
+// The selected runtime must be available in the system's PATH.
+func WithJSRuntime(runtime js.Runtime) ScraperOption {
+	return func(o *Options) {
+		o.JSRuntime = runtime
+	}
+}
+
+// WithLogger sets a logger for the scraper to use for debug output.
+// By default, logging is disabled.
+func WithLogger(logger *log.Logger) ScraperOption {
+	return func(o *Options) {
+		o.Logger = logger
 	}
 }
