@@ -1,10 +1,10 @@
-package scraper
+package main
 
 import (
 	"fmt"
+	"github.com/robertkrimen/otto"
 	"regexp"
 	"strings"
-	"github.com/robertkrimen/otto"
 )
 
 var (
@@ -30,7 +30,7 @@ func solveJSChallenge(body, domain string) (string, error) {
 	if len(exprMatches) < 3 {
 		return "", fmt.Errorf("could not find JS challenge expression")
 	}
-	
+
 	// This is the obfuscated JS math expression
 	obfuscatedJS := exprMatches[2]
 
@@ -40,16 +40,16 @@ func solveJSChallenge(body, domain string) (string, error) {
 		return "", fmt.Errorf("could not find JS challenge pass expression")
 	}
 	finalCalc := passMatches[1]
-	
+
 	// Replace the variable name with its obfuscated value
 	finalCalc = strings.Replace(finalCalc, "wKRocaN."+exprMatches[1], obfuscatedJS, 1)
 
 	// 4. Execute the JS in Otto
 	vm := otto.New()
-	
+
 	// The challenge script sometimes uses 't.length', which is the length of the domain.
 	vm.Set("t", domain)
-	
+
 	// Evaluate the final calculation
 	result, err := vm.Run(finalCalc)
 	if err != nil {

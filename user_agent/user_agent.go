@@ -2,8 +2,8 @@ package useragent
 
 import (
 	"crypto/tls"
-	"encoding/json"
 	_ "embed"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -22,16 +22,16 @@ type Agent struct {
 
 // Config allows for filtering user agents.
 type Config struct {
-	Browser   string
-	Platform  string
-	Desktop   bool
-	Mobile    bool
-	Custom    string
+	Browser  string
+	Platform string
+	Desktop  bool
+	Mobile   bool
+	Custom   string
 }
 
 type browserData struct {
-	Headers     map[string]map[string]string            `json:"headers"`
-	CipherSuite map[string][]string                     `json:"cipherSuite"`
+	Headers     map[string]map[string]string              `json:"headers"`
+	CipherSuite map[string][]string                       `json:"cipherSuite"`
 	UserAgents  map[string]map[string]map[string][]string `json:"user_agents"`
 }
 
@@ -42,11 +42,11 @@ var tlsCipherMap = map[string]uint16{
 	"TLS_CHACHA20_POLY1305_SHA256": tls.TLS_CHACHA20_POLY1305_SHA256,
 	// ECDHE
 	"ECDHE-ECDSA-AES128-GCM-SHA256": tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-	"ECDHE-RSA-AES128-GCM-SHA256":  tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+	"ECDHE-RSA-AES128-GCM-SHA256":   tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
 	"ECDHE-ECDSA-AES256-GCM-SHA384": tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
-	"ECDHE-RSA-AES256-GCM-SHA384":  tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+	"ECDHE-RSA-AES256-GCM-SHA384":   tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
 	"ECDHE-ECDSA-CHACHA20-POLY1305": tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
-	"ECDHE-RSA-CHACHA20-POLY1305":  tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+	"ECDHE-RSA-CHACHA20-POLY1305":   tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
 	"ECDHE-RSA-AES128-SHA":          tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
 	"ECDHE-RSA-AES256-SHA":          tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
 	"ECDHE-ECDSA-AES128-SHA":        tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
@@ -84,20 +84,20 @@ func New(cfg Config) (*Agent, error) {
 			},
 		}, nil
 	}
-	
+
 	// Default to all device types if none specified
 	if !cfg.Desktop && !cfg.Mobile {
 		cfg.Desktop = true
 		cfg.Mobile = true
 	}
-	
+
 	var candidates []string
 	if cfg.Browser == "" {
 		candidates = []string{"chrome", "firefox"}
 	} else {
 		candidates = []string{cfg.Browser}
 	}
-	
+
 	browser := candidates[rand.Intn(len(candidates))]
 
 	// Filter user agents based on config
@@ -114,7 +114,7 @@ func New(cfg Config) (*Agent, error) {
 	}
 
 	ua := availableUAs[rand.Intn(len(availableUAs))]
-	
+
 	headers := make(http.Header)
 	for key, value := range browsers.Headers[browser] {
 		headers.Set(key, value)

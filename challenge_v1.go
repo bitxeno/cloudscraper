@@ -1,8 +1,8 @@
-package scraper
+package main
 
 import (
 	"fmt"
-	"github.com/Advik-B/cloudscraper/scraper/errors"
+	"github.com/Advik-B/cloudscraper/errors"
 	"github.com/robertkrimen/otto"
 	"regexp"
 	"strings"

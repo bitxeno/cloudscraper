@@ -1,10 +1,10 @@
-package scraper
+package main
 
 import (
-	"github.com/Advik-B/cloudscraper/scraper/captcha"
-	"github.com/Advik-B/cloudscraper/scraper/proxy"
-	"github.com/Advik-B/cloudscraper/scraper/stealth"
-	useragent "github.com/Advik-B/cloudscraper/scraper/user_agent"
+	"github.com/Advik-B/cloudscraper/captcha"
+	"github.com/Advik-B/cloudscraper/proxy"
+	"github.com/Advik-B/cloudscraper/stealth"
+	"github.com/Advik-B/cloudscraper/user_agent"
 	"time"
 )
 

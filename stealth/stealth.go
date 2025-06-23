@@ -8,12 +8,12 @@ import (
 
 // Options configures the stealth mode.
 type Options struct {
-	Enabled         bool
-	MinDelay        time.Duration
-	MaxDelay        time.Duration
-	HumanLikeDelays bool
+	Enabled          bool
+	MinDelay         time.Duration
+	MaxDelay         time.Duration
+	HumanLikeDelays  bool
 	RandomizeHeaders bool
-	BrowserQuirks   bool
+	BrowserQuirks    bool
 }
 
 // Mode handles applying stealth techniques.
@@ -84,20 +84,20 @@ func (s *Mode) applyBrowserQuirks(h http.Header, browser string) {
 	switch browser {
 	case "chrome":
 		quirks = map[string]string{
-			"sec-ch-ua":                `"Not_A Brand";v="99", "Google Chrome";v="120", "Chromium";v="120"`,
-			"sec-ch-ua-mobile":         "?0",
-			"sec-ch-ua-platform":       `"Windows"`,
-			"Sec-Fetch-Site":           "none",
-			"Sec-Fetch-Mode":           "navigate",
-			"Sec-Fetch-User":           "?1",
-			"Sec-Fetch-Dest":           "document",
+			"sec-ch-ua":          `"Not_A Brand";v="99", "Google Chrome";v="120", "Chromium";v="120"`,
+			"sec-ch-ua-mobile":   "?0",
+			"sec-ch-ua-platform": `"Windows"`,
+			"Sec-Fetch-Site":     "none",
+			"Sec-Fetch-Mode":     "navigate",
+			"Sec-Fetch-User":     "?1",
+			"Sec-Fetch-Dest":     "document",
 		}
 	case "firefox":
 		quirks = map[string]string{
 			"Upgrade-Insecure-Requests": "1",
 		}
 	}
-	
+
 	for key, value := range quirks {
 		if h.Get(key) == "" {
 			h.Set(key, value)

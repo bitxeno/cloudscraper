@@ -1,7 +1,13 @@
-package scraper
+package main
 
 import (
 	"fmt"
+	"github.com/Advik-B/cloudscraper/captcha"
+	"github.com/Advik-B/cloudscraper/errors"
+	"github.com/Advik-B/cloudscraper/proxy"
+	"github.com/Advik-B/cloudscraper/stealth"
+	"github.com/Advik-B/cloudscraper/transport"
+	"github.com/Advik-B/cloudscraper/user_agent"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -11,13 +17,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/Advik-B/cloudscraper/scraper/captcha"
-	"github.com/Advik-B/cloudscraper/scraper/errors"
-	"github.com/Advik-B/cloudscraper/scraper/proxy"
-	"github.com/Advik-B/cloudscraper/scraper/stealth"
-	"github.com/Advik-B/cloudscraper/scraper/transport"
-	useragent "github.com/Advik-B/cloudscraper/scraper/user_agent"
 
 	"github.com/andybalholm/brotli"
 	"golang.org/x/net/publicsuffix"

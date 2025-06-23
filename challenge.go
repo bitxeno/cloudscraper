@@ -1,8 +1,8 @@
-package scraper
+package main
 
 import (
 	"fmt"
-	"github.com/Advik-B/cloudscraper/scraper/errors"
+	"github.com/Advik-B/cloudscraper/errors"
 	"io"
 	"net/http"
 	"net/url"
