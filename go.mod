@@ -1,4 +1,4 @@
-module go-cloudscraper
+module github.com/Advik-B/cloudscraper
 
 go 1.24.1
 
