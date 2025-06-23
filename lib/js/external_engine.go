@@ -14,6 +14,14 @@ type ExternalEngine struct {
 
 // NewExternalEngine creates a new engine that shells out to an external command.
 func NewExternalEngine(command string) (*ExternalEngine, error) {
+	// Security: Only allow known, safe commands to be executed to prevent command injection.
+	switch command {
+	case "node", "deno", "bun":
+		// This is a supported and expected runtime.
+	default:
+		return nil, fmt.Errorf("unsupported or unsafe external JS runtime: '%s'", command)
+	}
+
 	// Check if the command exists in the system's PATH.
 	if _, err := exec.LookPath(command); err != nil {
 		return nil, fmt.Errorf("javascript runtime '%s' not found in PATH: %w", command, err)
@@ -23,6 +31,8 @@ func NewExternalEngine(command string) (*ExternalEngine, error) {
 
 // Run executes a script by piping it to the external runtime's stdin.
 func (e *ExternalEngine) Run(script string) (string, error) {
+	// Security: The `e.Command` field is sanitized in the constructor (NewExternalEngine),
+	// making this call safe from command injection.
 	cmd := exec.Command(e.Command)
 	cmd.Stdin = strings.NewReader(script)
 
