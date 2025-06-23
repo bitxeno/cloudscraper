@@ -2,22 +2,22 @@ package scraper
 
 import (
 	"fmt"
+	"github.com/Advik-B/cloudscraper/scraper/errors"
+	"io"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
 	"time"
-	"io"
-	"go-cloudscraper/scraper/errors"
 )
 
 var (
-	jsV1DetectRegex       = regexp.MustCompile(`(?i)cdn-cgi/images/trace/jsch/`)
-	jsV2DetectRegex       = regexp.MustCompile(`(?i)/cdn-cgi/challenge-platform/`)
-	captchaDetectRegex    = regexp.MustCompile(`data-sitekey="([^\"]+)"`)
-	challengeFormRegex    = regexp.MustCompile(`<form class="challenge-form" id="challenge-form" action="(.+?)" method="POST">`)
-	jschlVcRegex          = regexp.MustCompile(`name="jschl_vc" value="(\w+)"`)
-	passRegex             = regexp.MustCompile(`name="pass" value="(.+?)"`)
+	jsV1DetectRegex    = regexp.MustCompile(`(?i)cdn-cgi/images/trace/jsch/`)
+	jsV2DetectRegex    = regexp.MustCompile(`(?i)/cdn-cgi/challenge-platform/`)
+	captchaDetectRegex = regexp.MustCompile(`data-sitekey="([^\"]+)"`)
+	challengeFormRegex = regexp.MustCompile(`<form class="challenge-form" id="challenge-form" action="(.+?)" method="POST">`)
+	jschlVcRegex       = regexp.MustCompile(`name="jschl_vc" value="(\w+)"`)
+	passRegex          = regexp.MustCompile(`name="pass" value="(.+?)"`)
 )
 
 func (s *Scraper) handleChallenge(resp *http.Response) (*http.Response, error) {
@@ -33,7 +33,7 @@ func (s *Scraper) handleChallenge(resp *http.Response) (*http.Response, error) {
 		fmt.Println("Modern (v2/v3) JavaScript challenge detected. Solving with Otto...")
 		return s.solveModernJSChallenge(resp, bodyStr)
 	}
-	
+
 	// Check for classic v1 JS challenge
 	if jsV1DetectRegex.MatchString(bodyStr) {
 		fmt.Println("Classic (v1) JavaScript challenge detected. Solving with Otto...")
@@ -45,7 +45,7 @@ func (s *Scraper) handleChallenge(resp *http.Response) (*http.Response, error) {
 		fmt.Println("Captcha/Turnstile challenge detected...")
 		return s.solveCaptchaChallenge(resp, bodyStr, siteKeyMatch[1])
 	}
-	
+
 	return nil, errors.ErrUnknownChallenge
 }
 
@@ -56,13 +56,19 @@ func (s *Scraper) solveClassicJSChallenge(originalURL *url.URL, body string) (*h
 	if err != nil {
 		return nil, fmt.Errorf("v1 challenge solver failed: %w", err)
 	}
-	
+
 	formMatch := challengeFormRegex.FindStringSubmatch(body)
-	if len(formMatch) < 2 { return nil, fmt.Errorf("v1: could not find challenge form") }
+	if len(formMatch) < 2 {
+		return nil, fmt.Errorf("v1: could not find challenge form")
+	}
 	vcMatch := jschlVcRegex.FindStringSubmatch(body)
-	if len(vcMatch) < 2 { return nil, fmt.Errorf("v1: could not find jschl_vc") }
+	if len(vcMatch) < 2 {
+		return nil, fmt.Errorf("v1: could not find jschl_vc")
+	}
 	passMatch := passRegex.FindStringSubmatch(body)
-	if len(passMatch) < 2 { return nil, fmt.Errorf("v1: could not find pass") }
+	if len(passMatch) < 2 {
+		return nil, fmt.Errorf("v1: could not find pass")
+	}
 
 	fullSubmitURL, _ := originalURL.Parse(formMatch[1])
 	formData := url.Values{
@@ -71,7 +77,7 @@ func (s *Scraper) solveClassicJSChallenge(originalURL *url.URL, body string) (*h
 		"pass":         {passMatch[1]},
 		"jschl_answer": {answer},
 	}
-	
+
 	return s.submitChallengeForm(fullSubmitURL.String(), originalURL.String(), formData)
 }
 
@@ -80,13 +86,19 @@ func (s *Scraper) solveModernJSChallenge(resp *http.Response, body string) (*htt
 	if err != nil {
 		return nil, fmt.Errorf("modern challenge solver failed: %w", err)
 	}
-	
+
 	formMatch := challengeFormRegex.FindStringSubmatch(body)
-	if len(formMatch) < 2 { return nil, fmt.Errorf("v2: could not find challenge form") }
+	if len(formMatch) < 2 {
+		return nil, fmt.Errorf("v2: could not find challenge form")
+	}
 	vcMatch := jschlVcRegex.FindStringSubmatch(body)
-	if len(vcMatch) < 2 { return nil, fmt.Errorf("v2: could not find jschl_vc") }
+	if len(vcMatch) < 2 {
+		return nil, fmt.Errorf("v2: could not find jschl_vc")
+	}
 	passMatch := passRegex.FindStringSubmatch(body)
-	if len(passMatch) < 2 { return nil, fmt.Errorf("v2: could not find pass") }
+	if len(passMatch) < 2 {
+		return nil, fmt.Errorf("v2: could not find pass")
+	}
 
 	fullSubmitURL, _ := resp.Request.URL.Parse(formMatch[1])
 	formData := url.Values{
@@ -103,12 +115,16 @@ func (s *Scraper) solveCaptchaChallenge(resp *http.Response, body, siteKey strin
 	if s.CaptchaSolver == nil {
 		return nil, errors.ErrNoCaptchaSolver
 	}
-	
+
 	token, err := s.CaptchaSolver.Solve("turnstile", resp.Request.URL.String(), siteKey)
-	if err != nil { return nil, fmt.Errorf("captcha solver failed: %w", err) }
-	
+	if err != nil {
+		return nil, fmt.Errorf("captcha solver failed: %w", err)
+	}
+
 	formMatch := challengeFormRegex.FindStringSubmatch(body)
-	if len(formMatch) < 2 { return nil, fmt.Errorf("captcha: could not find challenge form") }
+	if len(formMatch) < 2 {
+		return nil, fmt.Errorf("captcha: could not find challenge form")
+	}
 	submitURL, _ := resp.Request.URL.Parse(formMatch[1])
 
 	formData := url.Values{
@@ -124,21 +140,27 @@ func (s *Scraper) submitChallengeForm(submitURL, refererURL string, formData url
 	req, _ := http.NewRequest("POST", submitURL, strings.NewReader(formData.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Referer", refererURL)
-	
+
 	// Use the main `do` method to ensure all headers and logic are applied
 	return s.do(req)
 }
 
 func (s *Scraper) extractRValue(body string) string {
 	rValMatch := regexp.MustCompile(`name="r" value="([^"]+)"`).FindStringSubmatch(body)
-	if len(rValMatch) > 1 { return rValMatch[1] }
+	if len(rValMatch) > 1 {
+		return rValMatch[1]
+	}
 	return ""
 }
 
 func isChallengeResponse(resp *http.Response, body []byte) bool {
-	if !strings.HasPrefix(resp.Header.Get("Server"), "cloudflare") { return false }
-	if resp.StatusCode != http.StatusServiceUnavailable && resp.StatusCode != http.StatusForbidden { return false }
-	
+	if !strings.HasPrefix(resp.Header.Get("Server"), "cloudflare") {
+		return false
+	}
+	if resp.StatusCode != http.StatusServiceUnavailable && resp.StatusCode != http.StatusForbidden {
+		return false
+	}
+
 	bodyStr := string(body)
 	return jsV1DetectRegex.MatchString(bodyStr) || jsV2DetectRegex.MatchString(bodyStr) || captchaDetectRegex.MatchString(bodyStr)
 }
