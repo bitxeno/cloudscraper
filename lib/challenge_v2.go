@@ -4,93 +4,92 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-	"time"
 
-	"github.com/robertkrimen/otto"
+	"github.com/Advik-B/cloudscraper/lib/js"
 )
 
-// Regex to find and extract the modern challenge script content and data.
+// Regex to find and extract the modern challenge script content.
 var v2ScriptRegex = regexp.MustCompile(`(?s)<script[^>]*>(.*?window\._cf_chl_opt.*?)<\/script>`)
 
-// solveModernChallenge uses a pure Go approach with otto to solve v2/v3 challenges.
-func solveModernChallenge(body, domain string) (string, error) {
-	// Find all script blocks, as Cloudflare may split logic.
-	matches := v2ScriptRegex.FindAllStringSubmatch(body, -1)
-	if len(matches) == 0 {
+// solveV2Logic solves modern v2/v3 challenges by delegating to the appropriate JS engine implementation.
+func solveV2Logic(body, domain string, engine js.Engine) (string, error) {
+	scriptMatches := v2ScriptRegex.FindAllStringSubmatch(body, -1)
+	if len(scriptMatches) == 0 {
 		return "", fmt.Errorf("could not find modern JS challenge scripts")
 	}
 
-	vm := otto.New()
+	// Use a special synchronous path for Otto, which can't handle async setTimeout.
+	if ottoEngine, ok := engine.(*js.OttoEngine); ok {
+		return ottoEngine.SolveV2Challenge(body, domain, scriptMatches)
+	}
 
-	// --- Create a Simulated Browser Environment (DOM Shim) ---
+	// Use a modern asynchronous path for external runtimes (node, deno, bun).
+	return solveV2WithExternal(domain, scriptMatches, engine)
+}
+
+// solveV2WithExternal builds a full script with shims and an async callback to solve the challenge.
+func solveV2WithExternal(domain string, scriptMatches [][]string, engine js.Engine) (string, error) {
+	// This DOM shim is required for the challenge script to run in a non-browser environment.
+	atobImpl := `
+        var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
+        var a, b, c, d, e, f, g, i = 0, result = '';
+        str = str.replace(/[^A-Za-z0-9\+\/\=]/g, '');
+        do {
+            a = chars.indexOf(str.charAt(i++)); b = chars.indexOf(str.charAt(i++));
+            c = chars.indexOf(str.charAt(i++)); d = chars.indexOf(str.charAt(i++));
+            e = a << 18 | b << 12 | c << 6 | d; f = e >> 16 & 255; g = e >> 8 & 255; a = e & 255;
+            result += String.fromCharCode(f);
+            if (c != 64) result += String.fromCharCode(g);
+            if (d != 64) result += String.fromCharCode(a);
+        } while (i < str.length);
+        return result;
+    `
+
 	setupScript := `
-		var window = this;
-		var navigator = { userAgent: "" }; // Will be set from scraper options
+		var window = globalThis;
+		var navigator = { userAgent: "" };
 		var document = {
 			getElementById: function(id) {
-				// Return a dummy object with a 'value' property so expressions like 'y.value = ...' don't fail.
-				return { value: "" };
+				if (!this.elements) this.elements = {};
+				if (!this.elements[id]) this.elements[id] = { value: "" };
+				return this.elements[id];
 			},
 			createElement: function(tag) {
 				return {
-					// Cloudflare checks the href of a created 'a' tag.
-					// We must provide it with a valid-looking URL.
 					firstChild: { href: "https://` + domain + `/" }
 				};
 			},
-			// Dummy cookie property for the script to write to.
 			cookie: ""
 		};
-		// Polyfill for atob, which is used by Cloudflare but not native to otto.
-		var atob = function(str) {
-			// This is a basic base64 decoder polyfill for JS environments.
-			var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
-			var a, b, c, d, e, f, g, i = 0, result = '';
-			str = str.replace(/[^A-Za-z0-9\+\/\=]/g, '');
-			do {
-				a = chars.indexOf(str.charAt(i++));
-				b = chars.indexOf(str.charAt(i++));
-				c = chars.indexOf(str.charAt(i++));
-				d = chars.indexOf(str.charAt(i++));
-				e = a << 18 | b << 12 | c << 6 | d;
-				f = e >> 16 & 255;
-				g = e >> 8 & 255;
-				a = e & 255;
-				result += String.fromCharCode(f);
-				if (c != 64) result += String.fromCharCode(g);
-				if (d != 64) result += String.fromCharCode(a);
-			} while (i < str.length);
-			return result;
-		};
+		var atob = function(str) {` + atobImpl + `};
 	`
-	if _, err := vm.Run(setupScript); err != nil {
-		return "", fmt.Errorf("otto: failed to set up DOM shim: %w", err)
-	}
-	// --------------------------------------------------------
 
-	// Execute all extracted Cloudflare scripts in the same VM context.
-	for _, match := range matches {
+	var fullScript strings.Builder
+	fullScript.WriteString(setupScript)
+
+	for _, match := range scriptMatches {
 		if len(match) > 1 {
 			scriptContent := match[1]
 			// The script expects a 'challenge-form' to exist for submission. We stub it.
 			scriptContent = strings.ReplaceAll(scriptContent, `document.getElementById('challenge-form');`, "({})")
-			if _, err := vm.Run(scriptContent); err != nil {
-				// This might fail on some scripts that are part of the chain, which can be okay.
-				// We only care about the final answer.
-				fmt.Printf("otto: warning, a script block failed to run: %v\n", err)
-			}
+			fullScript.WriteString(scriptContent)
+			fullScript.WriteString(";\n")
 		}
 	}
 
-	// The answer is often stored in 'window._cf_chl_opt.cRq' or a similar structure.
-	// We wait briefly for any setTimeout calls to complete.
-	time.Sleep(4 * time.Second)
+	// The Cloudflare script uses a setTimeout of 4000ms. We'll wait a little longer
+	// and then extract the answer, printing it to stdout for Go to capture.
+	answerExtractor := `
+        setTimeout(function() {
+            try {
+                var answer = document.getElementById('jschl-answer').value;
+                console.log(answer);
+            } catch (e) {
+                // Ignore errors if the element isn't found, the process will just exit.
+            }
+        }, 4100);
+    `
+	fullScript.WriteString(answerExtractor)
 
-	// Try to get the final answer from the 'jschl_answer' field in the dummy document.
-	answerObj, err := vm.Run(`document.getElementById('jschl-answer').value`)
-	if err != nil || !answerObj.IsString() {
-		return "", fmt.Errorf("otto: could not retrieve final answer from VM: %w", err)
-	}
-
-	return answerObj.String(), nil
+	return engine.Run(fullScript.String())
 }
