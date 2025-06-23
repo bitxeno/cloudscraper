@@ -246,6 +246,29 @@ This library mimics the interaction flow a real browser would have with a Cloudf
 5.  **Submission & Cookie Handling:** The solved answer or token is submitted back to Cloudflare. If successful, Cloudflare returns a `cf_clearance` cookie. The scraper's internal `cookiejar` stores this cookie for subsequent requests to the site.
 6.  **Success:** The original request is retried, now with the clearance cookie, and should succeed.
 
+## Versioning Convention
+
+Tags in this project follow a structured naming format:
+
+```
+v<library-version>-pyv<cloudscraper-python-version>
+```
+
+* `v<library-version>` refers to the version of this Go library.
+* `pyv<cloudscraper-python-version>` indicates the version of the original Python `cloudscraper` project that was ported or matched in functionality.
+
+For example:
+
+```
+v1.0-pyv3.0.0
+```
+
+This means:
+
+* The Go port is at version **1.0**.
+* It mirrors features and behavior from the Python `cloudscraper` version **3.0.0**.
+
+This dual-tag system helps developers easily identify compatibility with the original Python package.
 
 ## Contributing
 
