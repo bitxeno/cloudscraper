@@ -2,12 +2,6 @@ package cloudscraper
 
 import (
 	"fmt"
-	"github.com/Advik-B/cloudscraper/lib/captcha"
-	"github.com/Advik-B/cloudscraper/lib/errors"
-	"github.com/Advik-B/cloudscraper/lib/proxy"
-	"github.com/Advik-B/cloudscraper/lib/stealth"
-	"github.com/Advik-B/cloudscraper/lib/transport"
-	"github.com/Advik-B/cloudscraper/lib/user_agent"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -16,6 +10,14 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/Advik-B/cloudscraper/lib/captcha"
+	"github.com/Advik-B/cloudscraper/lib/errors"
+	"github.com/Advik-B/cloudscraper/lib/js"
+	"github.com/Advik-B/cloudscraper/lib/proxy"
+	"github.com/Advik-B/cloudscraper/lib/stealth"
+	"github.com/Advik-B/cloudscraper/lib/transport"
+	"github.com/Advik-B/cloudscraper/lib/user_agent"
 
 	"github.com/andybalholm/brotli"
 	"golang.org/x/net/publicsuffix"
@@ -30,6 +32,7 @@ type Scraper struct {
 	CaptchaSolver captcha.Solver
 	ProxyManager  *proxy.Manager
 	StealthMode   *stealth.Mode
+	jsEngine      js.Engine
 
 	mu               sync.Mutex
 	sessionStartTime time.Time
@@ -52,6 +55,7 @@ func New(opts ...ScraperOption) (*Scraper, error) {
 			RandomizeHeaders: true,
 			BrowserQuirks:    true,
 		},
+		JSRuntime: "otto", // Default to the built-in engine
 	}
 
 	for _, opt := range opts {
@@ -79,6 +83,19 @@ func New(opts ...ScraperOption) (*Scraper, error) {
 		}
 	}
 
+	var jsEngine js.Engine
+	switch options.JSRuntime {
+	case "node", "deno", "bun":
+		jsEngine, err = js.NewExternalEngine(options.JSRuntime)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize JS runtime: %w", err)
+		}
+	case "otto", "": // Default to otto
+		jsEngine = js.NewOttoEngine()
+	default:
+		return nil, fmt.Errorf("unsupported JS runtime: %s", options.JSRuntime)
+	}
+
 	s := &Scraper{
 		client: &http.Client{
 			Jar:       jar,
@@ -92,6 +109,7 @@ func New(opts ...ScraperOption) (*Scraper, error) {
 		CaptchaSolver:    options.CaptchaSolver,
 		ProxyManager:     pm,
 		StealthMode:      stealth.New(options.Stealth),
+		jsEngine:         jsEngine,
 		sessionStartTime: time.Now(),
 	}
 
@@ -160,19 +178,11 @@ func (s *Scraper) do(req *http.Request) (*http.Response, error) {
 		s.ProxyManager.ReportSuccess(currentProxy)
 	}
 
-	// =========================================================================
-	// NEW: Decompression Logic
-	// =========================================================================
-	// Check the content encoding and wrap the body in a decompressing reader if necessary.
-	// Go's http.Client handles gzip automatically, but not brotli.
 	switch resp.Header.Get("Content-Encoding") {
 	case "br":
-		// Replace the response body with a brotli decompressor
 		resp.Body = io.NopCloser(brotli.NewReader(resp.Body))
-		// Remove the header to prevent the client from trying to decompress again
 		resp.Header.Del("Content-Encoding")
 	}
-	// =========================================================================
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	resp.Body.Close()
