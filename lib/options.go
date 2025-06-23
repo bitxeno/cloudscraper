@@ -23,7 +23,8 @@ type Options struct {
 		Strategy proxy.Strategy
 		BanTime  time.Duration
 	}
-	Stealth stealth.Options
+	Stealth   stealth.Options
+	JSRuntime string // "otto", "node", "deno", "bun"
 }
 
 // ScraperOption configures a Scraper.
@@ -72,5 +73,14 @@ func WithSessionConfig(refreshOn403 bool, interval time.Duration, maxRetries int
 func WithDelay(d time.Duration) ScraperOption {
 	return func(o *Options) {
 		o.Delay = d
+	}
+}
+
+// WithJSRuntime sets the JavaScript runtime to use for solving challenges.
+// Supported values are "otto" (default), "node", "deno", "bun".
+// The selected runtime must be available in the system's PATH.
+func WithJSRuntime(runtime string) ScraperOption {
+	return func(o *Options) {
+		o.JSRuntime = runtime
 	}
 }
