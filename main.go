@@ -7,10 +7,10 @@ import (
 	"os"
 	"time"
 
-	"go-cloudscraper/scraper"
-	"go-cloudscraper/scraper/proxy"
-	"go-cloudscraper/scraper/stealth"
-	useragent "go-cloudscraper/scraper/user_agent"
+	"github.com/Advik-B/cloudscraper/scraper"
+	"github.com/Advik-B/cloudscraper/scraper/proxy"
+	"github.com/Advik-B/cloudscraper/scraper/stealth"
+	useragent "github.com/Advik-B/cloudscraper/scraper/user_agent"
 )
 
 func main() {
@@ -34,12 +34,14 @@ func main() {
 			HumanLikeDelays: true,
 		}),
 	)
-	
+
 	// Add proxies if you have them in environment variables
 	var proxies []string
 	for i := 1; ; i++ {
 		p := os.Getenv(fmt.Sprintf("PROXY%d", i))
-		if p == "" { break }
+		if p == "" {
+			break
+		}
 		proxies = append(proxies, p)
 	}
 	if len(proxies) > 0 {
@@ -63,7 +65,9 @@ func main() {
 	fmt.Printf("Status: %s\n", resp.Status)
 
 	body, err := io.ReadAll(resp.Body)
-	if err != nil { log.Fatalf("Failed to read response body: %v", err) }
+	if err != nil {
+		log.Fatalf("Failed to read response body: %v", err)
+	}
 
 	bodyPreview := string(body)
 	if len(bodyPreview) > 500 {
