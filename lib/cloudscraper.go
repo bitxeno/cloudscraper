@@ -27,7 +27,7 @@ type Scraper struct {
 	client *http.Client
 	opts   Options
 
-	UserAgent     *useragent.useragent
+	UserAgent     *useragent.Agent
 	CaptchaSolver captcha.Solver
 	ProxyManager  *proxy.Manager
 	StealthMode   *stealth.Mode
