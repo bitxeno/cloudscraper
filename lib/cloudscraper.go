@@ -3,6 +3,7 @@ package cloudscraper
 import (
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -27,6 +28,7 @@ import (
 type Scraper struct {
 	client *http.Client
 	opts   Options
+	logger *log.Logger
 
 	UserAgent     *useragent.Agent
 	CaptchaSolver captcha.Solver
@@ -55,7 +57,7 @@ func New(opts ...ScraperOption) (*Scraper, error) {
 			RandomizeHeaders: true,
 			BrowserQuirks:    true,
 		},
-		JSRuntime: "otto", // Default to the built-in engine
+		JSRuntime: js.Otto, // Default to the built-in engine
 	}
 
 	for _, opt := range opts {
@@ -83,14 +85,22 @@ func New(opts ...ScraperOption) (*Scraper, error) {
 		}
 	}
 
+	var logger *log.Logger
+	if options.Logger != nil {
+		logger = options.Logger
+	} else {
+		// Default to a silent logger if none is provided.
+		logger = log.New(io.Discard, "", 0)
+	}
+
 	var jsEngine js.Engine
 	switch options.JSRuntime {
-	case "node", "deno", "bun":
-		jsEngine, err = js.NewExternalEngine(options.JSRuntime)
+	case js.Node, js.Deno, js.Bun:
+		jsEngine, err = js.NewExternalEngine(string(options.JSRuntime))
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize JS runtime: %w", err)
 		}
-	case "otto", "": // Default to otto
+	case js.Otto, "": // Default to otto
 		jsEngine = js.NewOttoEngine()
 	default:
 		return nil, fmt.Errorf("unsupported JS runtime: %s", options.JSRuntime)
@@ -103,6 +113,7 @@ func New(opts ...ScraperOption) (*Scraper, error) {
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
 				return http.ErrUseLastResponse
 			},
+			Timeout: 30 * time.Second, // Add a default timeout
 		},
 		opts:             options,
 		UserAgent:        agent,
@@ -110,6 +121,7 @@ func New(opts ...ScraperOption) (*Scraper, error) {
 		ProxyManager:     pm,
 		StealthMode:      stealth.New(options.Stealth),
 		jsEngine:         jsEngine,
+		logger:           logger,
 		sessionStartTime: time.Now(),
 	}
 
@@ -139,7 +151,7 @@ func (s *Scraper) do(req *http.Request) (*http.Response, error) {
 	s.mu.Lock()
 	if s.shouldRefreshSession() {
 		if err := s.refreshSession(req.URL); err != nil {
-			fmt.Printf("Warning: session refresh failed: %v\n", err)
+			s.logger.Printf("Warning: session refresh failed: %v\n", err)
 		}
 	}
 	s.mu.Unlock()
@@ -192,7 +204,7 @@ func (s *Scraper) do(req *http.Request) (*http.Response, error) {
 	resp.Body = io.NopCloser(strings.NewReader(string(bodyBytes)))
 
 	if isChallengeResponse(resp, bodyBytes) {
-		fmt.Println("Cloudflare protection detected, attempting to bypass...")
+		s.logger.Println("Cloudflare protection detected, attempting to bypass...")
 		return s.handleChallenge(resp)
 	}
 
@@ -229,7 +241,7 @@ func (s *Scraper) handle403(req *http.Request) (*http.Response, error) {
 	}()
 
 	for i := 0; i < s.opts.Max403Retries; i++ {
-		fmt.Printf("Received 403. Refreshing session (attempt %d/%d)...\n", i+1, s.opts.Max403Retries)
+		s.logger.Printf("Received 403. Refreshing session (attempt %d/%d)...\n", i+1, s.opts.Max403Retries)
 		if err := s.refreshSession(req.URL); err != nil {
 			return nil, fmt.Errorf("failed to refresh session after 403: %w", err)
 		}
@@ -248,7 +260,7 @@ func (s *Scraper) shouldRefreshSession() bool {
 }
 
 func (s *Scraper) refreshSession(currentURL *url.URL) error {
-	fmt.Println("Refreshing session...")
+	s.logger.Println("Refreshing session...")
 	s.sessionStartTime = time.Now()
 	atomic.StoreInt32(&s.requestCount, 0)
 
