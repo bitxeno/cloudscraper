@@ -2,13 +2,14 @@ package cloudscraper
 
 import (
 	"fmt"
-	"github.com/Advik-B/cloudscraper/lib/errors"
 	"io"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/Advik-B/cloudscraper/lib/errors"
 )
 
 var (
@@ -30,13 +31,13 @@ func (s *Scraper) handleChallenge(resp *http.Response) (*http.Response, error) {
 
 	// Check for modern v2/v3 JS VM challenge first
 	if jsV2DetectRegex.MatchString(bodyStr) {
-		fmt.Println("Modern (v2/v3) JavaScript challenge detected. Solving with Otto...")
+		fmt.Printf("Modern (v2/v3) JavaScript challenge detected. Solving with '%s'...\n", s.opts.JSRuntime)
 		return s.solveModernJSChallenge(resp, bodyStr)
 	}
 
 	// Check for classic lib JS challenge
 	if jsV1DetectRegex.MatchString(bodyStr) {
-		fmt.Println("Classic (lib) JavaScript challenge detected. Solving with Otto...")
+		fmt.Printf("Classic (v1) JavaScript challenge detected. Solving with '%s'...\n", s.opts.JSRuntime)
 		return s.solveClassicJSChallenge(resp.Request.URL, bodyStr)
 	}
 
@@ -52,22 +53,22 @@ func (s *Scraper) handleChallenge(resp *http.Response) (*http.Response, error) {
 func (s *Scraper) solveClassicJSChallenge(originalURL *url.URL, body string) (*http.Response, error) {
 	time.Sleep(4 * time.Second)
 
-	answer, err := solveV1Challenge(body, originalURL.Host)
+	answer, err := solveV1Logic(body, originalURL.Host, s.jsEngine)
 	if err != nil {
-		return nil, fmt.Errorf("lib challenge solver failed: %w", err)
+		return nil, fmt.Errorf("v1 challenge solver failed: %w", err)
 	}
 
 	formMatch := challengeFormRegex.FindStringSubmatch(body)
 	if len(formMatch) < 2 {
-		return nil, fmt.Errorf("lib: could not find challenge form")
+		return nil, fmt.Errorf("v1: could not find challenge form")
 	}
 	vcMatch := jschlVcRegex.FindStringSubmatch(body)
 	if len(vcMatch) < 2 {
-		return nil, fmt.Errorf("lib: could not find jschl_vc")
+		return nil, fmt.Errorf("v1: could not find jschl_vc")
 	}
 	passMatch := passRegex.FindStringSubmatch(body)
 	if len(passMatch) < 2 {
-		return nil, fmt.Errorf("lib: could not find pass")
+		return nil, fmt.Errorf("v1: could not find pass")
 	}
 
 	fullSubmitURL, _ := originalURL.Parse(formMatch[1])
@@ -82,9 +83,9 @@ func (s *Scraper) solveClassicJSChallenge(originalURL *url.URL, body string) (*h
 }
 
 func (s *Scraper) solveModernJSChallenge(resp *http.Response, body string) (*http.Response, error) {
-	answer, err := solveModernChallenge(body, resp.Request.URL.Host)
+	answer, err := solveV2Logic(body, resp.Request.URL.Host, s.jsEngine)
 	if err != nil {
-		return nil, fmt.Errorf("modern challenge solver failed: %w", err)
+		return nil, fmt.Errorf("v2 challenge solver failed: %w", err)
 	}
 
 	formMatch := challengeFormRegex.FindStringSubmatch(body)
@@ -93,7 +94,8 @@ func (s *Scraper) solveModernJSChallenge(resp *http.Response, body string) (*htt
 	}
 	vcMatch := jschlVcRegex.FindStringSubmatch(body)
 	if len(vcMatch) < 2 {
-		return nil, fmt.Errorf("v2: could not find jschl_vc")
+		// v2 challenges sometimes don't have a jschl_vc. This is okay.
+		vcMatch = []string{"", ""}
 	}
 	passMatch := passRegex.FindStringSubmatch(body)
 	if len(passMatch) < 2 {
