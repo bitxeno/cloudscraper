@@ -19,6 +19,7 @@ import (
 	"github.com/Advik-B/cloudscraper/scraper/transport"
 	useragent "github.com/Advik-B/cloudscraper/scraper/user_agent"
 
+	"github.com/andybalholm/brotli"
 	"golang.org/x/net/publicsuffix"
 )
 
@@ -161,11 +162,29 @@ func (s *Scraper) do(req *http.Request) (*http.Response, error) {
 		s.ProxyManager.ReportSuccess(currentProxy)
 	}
 
-	bodyBytes, _ := ioutil.ReadAll(resp.Body)
+	// =========================================================================
+	// NEW: Decompression Logic
+	// =========================================================================
+	// Check the content encoding and wrap the body in a decompressing reader if necessary.
+	// Go's http.Client handles gzip automatically, but not brotli.
+	switch resp.Header.Get("Content-Encoding") {
+	case "br":
+		// Replace the response body with a brotli decompressor
+		resp.Body = io.NopCloser(brotli.NewReader(resp.Body))
+		// Remove the header to prevent the client from trying to decompress again
+		resp.Header.Del("Content-Encoding")
+	}
+	// =========================================================================
+
+	bodyBytes, err := io.ReadAll(resp.Body)
 	resp.Body.Close()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
 	resp.Body = ioutil.NopCloser(strings.NewReader(string(bodyBytes)))
 
 	if isChallengeResponse(resp, bodyBytes) {
+		fmt.Println("Cloudflare protection detected, attempting to bypass...")
 		return s.handleChallenge(resp)
 	}
 
