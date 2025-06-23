@@ -1,7 +1,7 @@
 # Go-Cloudscraper
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/Advik-B/cloudscraper)](https://goreportcard.com/report/github.com/Advik-B/cloudscraper)
-[![Go.Dev reference](https://img.shields.io/badge/go.dev-reference-blue?logo=go&logoColor=white)](https://pkg.go.dev/github.com/Advik-B/cloudscraper)
+[![Go.Dev reference](https://img.shields.io/badge/go.dev-reference-blue?logo=go&logoColor=white)](https://pkg.go.dev/github.com/Advik-B/cloudscraper/lib)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A comprehensive, standalone Go port of the popular Python [`cloudscraper`](https://github.com/VeNoMouS/cloudscraper) library, designed to bypass Cloudflare's anti-bot protection.
@@ -27,14 +27,14 @@ This library aims for feature-parity with the original Python version, providing
 
 ## Installation
 
-To get the library, use `go get`:
+To get the latest version of the library, use `go get`:
 ```bash
-go get github.com/Advik-B/cloudscraper/lib
+go get github.com/Advik-B/cloudscraper@
 ```
 
 ## Basic Usage
 
-Here is the simplest way to use `go-cloudscraper` to make a GET request to a protected site.
+Here is the simplest way to use this, is to make a GET request to a protected site.
 
 ```go
 package main
@@ -43,8 +43,7 @@ import (
 	"fmt"
 	"io"
 	"log"
-
-	"github.com/Advik-B/cloudscraper/lib"
+        "github.com/Advik-B/cloudscraper/lib"
 )
 
 func main() {
@@ -89,11 +88,15 @@ By default, `go-cloudscraper` uses a built-in Go-based JavaScript interpreter (`
 To use an external runtime, it must be installed and available in your system's `PATH`.
 
 ```go
-import "github.com/Advik-B/cloudscraper/lib"
+import (
+        "github.com/Advik-B/cloudscraper/lib"
+	"github.com/Advik-B/cloudscraper/lib/js"
+)
 
 sc, err := cloudscraper.New(
-    // Specify the runtime to use. Can be "node", "deno", or "bun".
-    cloudscraper.WithJSRuntime("node"),
+    // Use type-safe constants for the runtime.
+    // Can be js.Node, js.Deno, or js.Bun.
+    cloudscraper.WithJSRuntime(js.Node),
 )
 ```
 
@@ -178,6 +181,7 @@ import (
 	"time"
 
 	"github.com/Advik-B/cloudscraper/lib"
+	"github.com/Advik-B/cloudscraper/lib/js"
 	"github.com/Advik-B/cloudscraper/lib/proxy"
 	"github.com/Advik-B/cloudscraper/lib/stealth"
 	useragent "github.com/Advik-B/cloudscraper/lib/user_agent"
@@ -187,16 +191,16 @@ func main() {
 	var scraperOptions []cloudscraper.ScraperOption
 
 	// Use an external JS runtime for better challenge compatibility
-	scraperOptions = append(scraperOptions, cloudscraper.WithJSRuntime("node"))
+	scraperOptions = append(scraperOptions, cloudscraper.WithJSRuntime(js.Node))
 
-	// Add proxies
+	// Add proxies with random rotation
 	scraperOptions = append(scraperOptions, cloudscraper.WithProxies(
-		[]string{"http://proxy1:8080", "http://proxy2:8080"},
+		[]string{"http://user:pass@proxy1:8080", "http://user:pass@proxy2:8080"},
 		proxy.Random,
 		5*time.Minute,
 	))
 
-	// Customize the browser
+	// Customize the browser to appear as Chrome on Windows
 	scraperOptions = append(scraperOptions, cloudscraper.WithBrowser(useragent.Config{
 		Browser:  "chrome",
 		Platform: "windows",
