@@ -28,7 +28,7 @@ This library aims for feature-parity with the original Python version, providing
 
 To get the library, use `go get`:
 ```bash
-go get github.com/Advik-B/cloudscraper/scraper
+go get github.com/Advik-B/cloudscraper
 ```
 
 ## Basic Usage
@@ -43,12 +43,12 @@ import (
 	"io"
 	"log"
 
-	"github.com/Advik-B/cloudscraper/scraper"
+	"github.com/Advik-B/cloudscraper"
 )
 
 func main() {
 	// Create a new scraper with default settings
-	sc, err := scraper.New()
+	sc, err := cloudscraper.New()
 	if err != nil {
 		log.Fatalf("Failed to create scraper: %v", err)
 	}
@@ -88,8 +88,8 @@ Provide a slice of proxy URLs. The manager supports `Sequential` and `Random` ro
 ```go
 import (
     "time"
-    "github.com/Advik-B/cloudscraper/scraper"
-    "github.com/Advik-B/cloudscraper/scraper/proxy"
+    "github.com/Advik-B/cloudscraper"
+    "github.com/Advik-B/cloudscraper/proxy"
 )
 
 proxies := []string{
@@ -97,7 +97,7 @@ proxies := []string{
     "http://user:pass@proxy2.com:8080",
 }
 
-sc, err := scraper.New(
+sc, err := cloudscraper.New(
     scraper.WithProxies(proxies, proxy.Random, 5*time.Minute),
 )
 ```
@@ -108,14 +108,14 @@ If a site presents a reCaptcha or Turnstile challenge, you can configure a solve
 
 ```go
 import (
-    "github.com/Advik-B/cloudscraper/scraper"
-    "github.com/Advik-B/cloudscraper/scraper/captcha"
+    "github.com/Advik-B/cloudscraper"
+    "github.com/Advik-B/cloudscraper/captcha"
 )
 
 // Initialize your chosen captcha solver
 solver := captcha.NewTwoCaptchaSolver("YOUR_2CAPTCHA_API_KEY")
 
-sc, err := scraper.New(
+sc, err := cloudscraper.New(
     scraper.WithCaptchaSolver(solver),
 )
 ```
@@ -127,20 +127,20 @@ You can change the browser identity and tweak stealth options to better suit you
 ```go
 import (
     "time"
-    "github.com/Advik-B/cloudscraper/scraper"
-    "github.com/Advik-B/cloudscraper/scraper/stealth"
-    useragent "github.com/Advik-B/cloudscraper/scraper/user_agent"
+    "github.com/Advik-B/cloudscraper"
+    "github.com/Advik-B/cloudscraper/stealth"
+    useragent "github.com/Advik-B/cloudscraper/user_agent"
 )
 
-sc, err := scraper.New(
+sc, err := cloudscraper.New(
     // Pretend to be Firefox on Linux
-    scraper.WithBrowser(useragent.Config{
+    cloudscraper.WithBrowser(useragent.Config{
         Browser:  "firefox",
         Platform: "linux",
         Desktop:  true,
     }),
     // Configure stealth delays
-    scraper.WithStealth(stealth.Options{
+    cloudscraper.WithStealth(stealth.Options{
         Enabled:         true,
         MinDelay:        1 * time.Second,
         MaxDelay:        5 * time.Second,
@@ -161,37 +161,37 @@ import (
 	"log"
 	"time"
 
-	"github.com/Advik-B/cloudscraper/scraper"
-	"github.com/Advik-B/cloudscraper/scraper/proxy"
-	"github.com/Advik-B/cloudscraper/scraper/stealth"
-	useragent "github.com/Advik-B/cloudscraper/scraper/user_agent"
+	"github.com/Advik-B/cloudscraper"
+	"github.com/Advik-B/cloudscraper/proxy"
+	"github.com/Advik-B/cloudscraper/stealth"
+	useragent "github.com/Advik-B/cloudscraper/user_agent"
 )
 
 func main() {
-	var scraperOptions []scraper.ScraperOption
+	var scraperOptions []cloudscraper.ScraperOption
 
 	// Add proxies
-	scraperOptions = append(scraperOptions, scraper.WithProxies(
+	scraperOptions = append(scraperOptions, cloudscraper.WithProxies(
 		[]string{"http://proxy1:8080", "http://proxy2:8080"},
 		proxy.Random,
 		5*time.Minute,
 	))
 	
 	// Customize the browser
-	scraperOptions = append(scraperOptions, scraper.WithBrowser(useragent.Config{
+	scraperOptions = append(scraperOptions, cloudscraper.WithBrowser(useragent.Config{
 		Browser:  "chrome",
 		Platform: "windows",
 	}))
 
 	// Customize session handling
-	scraperOptions = append(scraperOptions, scraper.WithSessionConfig(
+	scraperOptions = append(scraperOptions, cloudscraper.WithSessionConfig(
 		true,          // Auto-refresh on 403s
 		30*time.Minute, // Refresh session every 30 mins
 		5,             // Max 403 retries
 	))
 
 	// Create the scraper with all our options
-	sc, err := scraper.New(scraperOptions...)
+	sc, err := cloudscraper.New(scraperOptions...)
 	if err != nil {
 		log.Fatalf("Failed to create scraper: %v", err)
 	}
@@ -223,10 +223,6 @@ This library mimics the interaction flow a real browser would have with a Cloudf
 5.  **Submission & Cookie Handling:** The solved answer or token is submitted back to Cloudflare. If successful, Cloudflare returns a `cf_clearance` cookie. The scraper's internal `cookiejar` stores this cookie for subsequent requests to the site.
 6.  **Success:** The original request is retried, now with the clearance cookie, and should succeed.
 
-## Dependencies
-
-*   [github.com/robertkrimen/otto](https://github.com/robertkrimen/otto) - A pure Go JavaScript interpreter used for solving challenges without external dependencies.
-*   [golang.org/x/net/publicsuffix](https://pkg.go.dev/golang.org/x/net/publicsuffix) - Used by the standard library's `cookiejar`.
 
 ## Contributing
 
