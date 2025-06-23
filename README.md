@@ -4,7 +4,7 @@
 [![Go.Dev reference](https://img.shields.io/badge/go.dev-reference-blue?logo=go&logoColor=white)](https://pkg.go.dev/github.com/Advik-B/cloudscraper)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A comprehensive, standalone Go port of the popular Python `cloudscraper` library, designed to bypass Cloudflare's anti-bot protection.
+A comprehensive, standalone Go port of the popular Python [`cloudscraper`](https://github.com/VeNoMouS/cloudscraper) library, designed to bypass Cloudflare's anti-bot protection.
 
 This library is written in pure Go and has **no external runtime dependencies like Node.js**. It simulates a browser environment internally to solve even modern JavaScript challenges, making your compiled Go application truly portable and self-contained.
 
