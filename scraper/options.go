@@ -1,11 +1,11 @@
 package scraper
 
 import (
+	"github.com/Advik-B/cloudscraper/scraper/captcha"
+	"github.com/Advik-B/cloudscraper/scraper/proxy"
+	"github.com/Advik-B/cloudscraper/scraper/stealth"
+	useragent "github.com/Advik-B/cloudscraper/scraper/user_agent"
 	"time"
-	"go-cloudscraper/scraper/captcha"
-	"go-cloudscraper/scraper/proxy"
-	useragent "go-cloudscraper/scraper/user_agent"
-	"go-cloudscraper/scraper/stealth"
 )
 
 // Options holds all configuration for the scraper.
