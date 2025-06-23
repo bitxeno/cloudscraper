@@ -2,16 +2,16 @@ package scraper
 
 import (
 	"fmt"
+	"github.com/Advik-B/cloudscraper/scraper/errors"
+	"github.com/robertkrimen/otto"
 	"regexp"
 	"strings"
-	"github.com/robertkrimen/otto"
-	"go-cloudscraper/scraper/errors"
 )
 
 var (
-	jsV1ChallengeRegex = regexp.MustCompile(`setTimeout\(function\(\){\s+(var s,t,o,p,b,r,e,a,k,i,n,g,f.+?a\.value =.+?)\r?\n`)
+	jsV1ChallengeRegex  = regexp.MustCompile(`setTimeout\(function\(\){\s+(var s,t,o,p,b,r,e,a,k,i,n,g,f.+?a\.value =.+?)\r?\n`)
 	jsV1ExpressionRegex = regexp.MustCompile(`var s,t,o,p,b,r,e,a,k,i,n,g,f, .+?={"(.+?)":\+?(.+?)}`)
-	jsV1PassRegex = regexp.MustCompile(`a\.value = (.+?)\.toFixed\(10\)`)
+	jsV1PassRegex       = regexp.MustCompile(`a\.value = (.+?)\.toFixed\(10\)`)
 )
 
 func solveV1Challenge(body, domain string) (string, error) {
@@ -25,7 +25,7 @@ func solveV1Challenge(body, domain string) (string, error) {
 	if len(exprMatches) < 3 {
 		return "", fmt.Errorf("could not find JS v1 challenge expression: %w", errors.ErrChallenge)
 	}
-	
+
 	obfuscatedJS := exprMatches[2]
 	finalCalcMatches := jsV1PassRegex.FindStringSubmatch(challengeScript)
 	if len(finalCalcMatches) < 2 {
@@ -37,7 +37,7 @@ func solveV1Challenge(body, domain string) (string, error) {
 
 	vm := otto.New()
 	vm.Set("t", domain)
-	
+
 	result, err := vm.Run(finalCalc)
 	if err != nil {
 		return "", fmt.Errorf("otto: failed to run v1 JS: %w", err)
