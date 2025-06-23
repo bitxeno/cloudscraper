@@ -2,6 +2,7 @@ package js
 
 import (
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -30,6 +31,8 @@ func (e *OttoEngine) Run(script string) (string, error) {
 		return "", fmt.Errorf("otto: failed to set console.log: %w", err)
 	}
 
+	// Security: This executes JavaScript from the Cloudflare challenge.
+	// The otto VM is sandboxed, but this is an inherent risk.
 	_, err = vm.Run(script)
 	if err != nil {
 		return "", fmt.Errorf("otto: script execution failed: %w", err)
@@ -39,7 +42,7 @@ func (e *OttoEngine) Run(script string) (string, error) {
 
 // SolveV2Challenge uses the original synchronous method to solve v2 challenges,
 // as otto does not support asynchronous operations like setTimeout.
-func (e *OttoEngine) SolveV2Challenge(body, domain string, scriptMatches [][]string) (string, error) {
+func (e *OttoEngine) SolveV2Challenge(body, domain string, scriptMatches [][]string, logger *log.Logger) (string, error) {
 	vm := otto.New()
 
 	// Create a Simulated Browser Environment (DOM Shim)
@@ -71,6 +74,7 @@ func (e *OttoEngine) SolveV2Challenge(body, domain string, scriptMatches [][]str
 			return result;
 		};
 	`
+	// Security: Running setup script in VM.
 	if _, err := vm.Run(setupScript); err != nil {
 		return "", fmt.Errorf("otto: failed to set up DOM shim: %w", err)
 	}
@@ -80,8 +84,10 @@ func (e *OttoEngine) SolveV2Challenge(body, domain string, scriptMatches [][]str
 		if len(match) > 1 {
 			scriptContent := match[1]
 			scriptContent = strings.ReplaceAll(scriptContent, `document.getElementById('challenge-form');`, "({})")
+			// Security: This executes JavaScript from the Cloudflare challenge page.
+			// The otto VM is sandboxed, but this is an inherent risk of the library's function.
 			if _, err := vm.Run(scriptContent); err != nil {
-				fmt.Printf("otto: warning, a script block failed to run: %v\n", err)
+				logger.Printf("otto: warning, a script block failed to run: %v\n", err)
 			}
 		}
 	}
@@ -90,6 +96,7 @@ func (e *OttoEngine) SolveV2Challenge(body, domain string, scriptMatches [][]str
 	time.Sleep(4 * time.Second)
 
 	// Get the final answer from the 'jschl_answer' field in the dummy document.
+	// Security: This executes a small, controlled script to retrieve a value.
 	answerObj, err := vm.Run(`document.getElementById('jschl-answer').value`)
 	if err != nil || !answerObj.IsString() {
 		return "", fmt.Errorf("otto: could not retrieve final answer from VM: %w", err)
