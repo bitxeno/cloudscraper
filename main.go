@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
+	"github.com/Advik-B/cloudscraper/scraper"
 	"io"
 	"log"
-	"github.com/Advik-B/cloudscraper/scraper"
 )
 
 func main() {
