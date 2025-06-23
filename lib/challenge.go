@@ -31,19 +31,19 @@ func (s *Scraper) handleChallenge(resp *http.Response) (*http.Response, error) {
 
 	// Check for modern v2/v3 JS VM challenge first
 	if jsV2DetectRegex.MatchString(bodyStr) {
-		fmt.Printf("Modern (v2/v3) JavaScript challenge detected. Solving with '%s'...\n", s.opts.JSRuntime)
+		s.logger.Printf("Modern (v2/v3) JavaScript challenge detected. Solving with '%s'...\n", s.opts.JSRuntime)
 		return s.solveModernJSChallenge(resp, bodyStr)
 	}
 
 	// Check for classic lib JS challenge
 	if jsV1DetectRegex.MatchString(bodyStr) {
-		fmt.Printf("Classic (v1) JavaScript challenge detected. Solving with '%s'...\n", s.opts.JSRuntime)
+		s.logger.Printf("Classic (v1) JavaScript challenge detected. Solving with '%s'...\n", s.opts.JSRuntime)
 		return s.solveClassicJSChallenge(resp.Request.URL, bodyStr)
 	}
 
 	// Check for Captcha/Turnstile
 	if siteKeyMatch := captchaDetectRegex.FindStringSubmatch(bodyStr); len(siteKeyMatch) > 1 {
-		fmt.Println("Captcha/Turnstile challenge detected...")
+		s.logger.Println("Captcha/Turnstile challenge detected...")
 		return s.solveCaptchaChallenge(resp, bodyStr, siteKeyMatch[1])
 	}
 
@@ -83,7 +83,7 @@ func (s *Scraper) solveClassicJSChallenge(originalURL *url.URL, body string) (*h
 }
 
 func (s *Scraper) solveModernJSChallenge(resp *http.Response, body string) (*http.Response, error) {
-	answer, err := solveV2Logic(body, resp.Request.URL.Host, s.jsEngine)
+	answer, err := solveV2Logic(body, resp.Request.URL.Host, s.jsEngine, s.logger)
 	if err != nil {
 		return nil, fmt.Errorf("v2 challenge solver failed: %w", err)
 	}
