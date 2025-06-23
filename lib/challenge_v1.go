@@ -2,51 +2,39 @@ package cloudscraper
 
 import (
 	"fmt"
-	"github.com/Advik-B/cloudscraper/lib/errors"
-	"github.com/robertkrimen/otto"
 	"regexp"
-	"strings"
+
+	"github.com/Advik-B/cloudscraper/lib/errors"
+	"github.com/Advik-B/cloudscraper/lib/js"
 )
 
 var (
-	jsV1ChallengeRegex  = regexp.MustCompile(`setTimeout\(function\(\){\s+(var s,t,o,p,b,r,e,a,k,i,n,g,f.+?a\.value =.+?)\r?\n`)
-	jsV1ExpressionRegex = regexp.MustCompile(`var s,t,o,p,b,r,e,a,k,i,n,g,f, .+?={"(.+?)":\+?(.+?)}`)
-	jsV1PassRegex       = regexp.MustCompile(`a\.value = (.+?)\.toFixed\(10\)`)
+	jsV1ChallengeRegex = regexp.MustCompile(`setTimeout\(function\(\){\s+(var s,t,o,p,b,r,e,a,k,i,n,g,f.+?a\.value =.+?)\r?\n`)
+	jsV1PassRegex      = regexp.MustCompile(`a\.value = (.+?)\.toFixed\(10\)`)
 )
 
-func solveV1Challenge(body, domain string) (string, error) {
+// solveV1Logic prepares and executes the v1 JS challenge using the configured engine.
+func solveV1Logic(body, domain string, engine js.Engine) (string, error) {
 	matches := jsV1ChallengeRegex.FindStringSubmatch(body)
 	if len(matches) < 2 {
-		return "", fmt.Errorf("could not find Cloudflare lib JS challenge script: %w", errors.ErrChallenge)
+		return "", fmt.Errorf("could not find Cloudflare v1 JS challenge script: %w", errors.ErrChallenge)
 	}
 	challengeScript := matches[1]
 
-	exprMatches := jsV1ExpressionRegex.FindStringSubmatch(challengeScript)
-	if len(exprMatches) < 3 {
-		return "", fmt.Errorf("could not find JS lib challenge expression: %w", errors.ErrChallenge)
+	passMatches := jsV1PassRegex.FindStringSubmatch(challengeScript)
+	if len(passMatches) < 2 {
+		return "", fmt.Errorf("could not find JS v1 pass expression: %w", errors.ErrChallenge)
 	}
+	// finalExpression is the core calculation, e.g., `(+((!![]+!![]...))) + t.length`
+	finalExpression := passMatches[1]
 
-	obfuscatedJS := exprMatches[2]
-	finalCalcMatches := jsV1PassRegex.FindStringSubmatch(challengeScript)
-	if len(finalCalcMatches) < 2 {
-		return "", fmt.Errorf("could not find JS lib challenge pass expression: %w", errors.ErrChallenge)
-	}
+	// Create a self-contained script that can be executed by any JS runtime.
+	// It prints the final answer to stdout, which is captured by the engine.
+	fullScript := fmt.Sprintf(`
+        var t = '%s';
+        var result = (%s).toFixed(10);
+        console.log(result);
+    `, domain, finalExpression)
 
-	finalCalc := finalCalcMatches[1]
-	finalCalc = strings.Replace(finalCalc, exprMatches[0][strings.LastIndex(exprMatches[0], "{")+1:strings.Index(exprMatches[0], `":`)], obfuscatedJS, 1)
-
-	vm := otto.New()
-	vm.Set("t", domain)
-
-	result, err := vm.Run(finalCalc)
-	if err != nil {
-		return "", fmt.Errorf("otto: failed to run lib JS: %w", err)
-	}
-
-	floatResult, err := result.ToFloat()
-	if err != nil {
-		return "", fmt.Errorf("otto: could not convert lib result to float: %w", err)
-	}
-
-	return fmt.Sprintf("%.10f", floatResult), nil
+	return engine.Run(fullScript)
 }
