@@ -6,7 +6,7 @@
 
 A comprehensive, standalone Go port of the popular Python [`cloudscraper`](https://github.com/VeNoMouS/cloudscraper) library, designed to bypass Cloudflare's anti-bot protection.
 
-This library is written in pure Go and has **no external runtime dependencies like Node.js**. It simulates a browser environment internally to solve even modern JavaScript challenges, making your compiled Go application truly portable and self-contained.
+This library is written in pure Go and aims to have **no external runtime dependencies like Node.js** by default. It simulates a browser environment internally to solve even modern JavaScript challenges, making your compiled Go application truly portable and self-contained. For advanced use cases, it also supports offloading JS execution to external runtimes like Node.js, Deno, or Bun.
 
 ## Features
 
@@ -14,7 +14,8 @@ This library aims for feature-parity with the original Python version, providing
 
 | Feature | Status | Description |
 | :--- | :--- | :--- |
-| **Standalone Binary** | ✅ **Complete** | Uses `go:embed` and a pure Go JS interpreter (`otto`). No Node.js required. |
+| **Standalone Binary** | ✅ **Complete** | Uses `go:embed` and a pure Go JS interpreter (`otto`) by default. No Node.js required. |
+| **External JS Runtimes**| ✅ **Complete** | Supports offloading JS execution to **Node.js, Deno, or Bun** for maximum compatibility. |
 | **Session & Cookie Handling** | ✅ **Complete** | Automatically manages a `cookiejar` to handle Cloudflare's session cookies. |
 | **JS Challenge Solver (v1)** | ✅ **Complete** | Solves the classic JavaScript math-based challenges internally. |
 | **JS Challenge Solver (v2/v3)** | ✅ **Complete** | Simulates a browser DOM within Go to solve modern JS VM challenges. |
@@ -81,6 +82,21 @@ func main() {
 
 `go-cloudscraper` uses a functional options pattern for configuration, allowing you to easily customize its behavior.
 
+### Using External JavaScript Runtimes
+
+By default, `go-cloudscraper` uses a built-in Go-based JavaScript interpreter (`otto`) for maximum portability. However, for the most complex or future Cloudflare challenges, you may get better results by using an external, full-featured JavaScript runtime like Node.js, Deno, or Bun.
+
+To use an external runtime, it must be installed and available in your system's `PATH`.
+
+```go
+import "github.com/Advik-B/cloudscraper/lib"
+
+sc, err := cloudscraper.New(
+    // Specify the runtime to use. Can be "node", "deno", or "bun".
+    cloudscraper.WithJSRuntime("node"),
+)
+```
+
 ### Using Proxies
 
 Provide a slice of proxy URLs. The manager supports `Sequential` and `Random` rotation.
@@ -98,7 +114,7 @@ proxies := []string{
 }
 
 sc, err := cloudscraper.New(
-    scraper.WithProxies(proxies, proxy.Random, 5*time.Minute),
+    cloudscraper.WithProxies(proxies, proxy.Random, 5*time.Minute),
 )
 ```
 
@@ -116,7 +132,7 @@ import (
 solver := captcha.NewTwoCaptchaSolver("YOUR_2CAPTCHA_API_KEY")
 
 sc, err := cloudscraper.New(
-    scraper.WithCaptchaSolver(solver),
+    cloudscraper.WithCaptchaSolver(solver),
 )
 ```
 
@@ -170,6 +186,9 @@ import (
 func main() {
 	var scraperOptions []cloudscraper.ScraperOption
 
+	// Use an external JS runtime for better challenge compatibility
+	scraperOptions = append(scraperOptions, cloudscraper.WithJSRuntime("node"))
+
 	// Add proxies
 	scraperOptions = append(scraperOptions, cloudscraper.WithProxies(
 		[]string{"http://proxy1:8080", "http://proxy2:8080"},
@@ -218,7 +237,7 @@ This library mimics the interaction flow a real browser would have with a Cloudf
     *   **v2/v3 JavaScript Challenge:** A more complex script that expects a browser-like environment.
     *   **reCaptcha/Turnstile:** Requires a CAPTCHA token.
 4.  **Solving:**
-    *   For **v1 and v2/v3 challenges**, it uses a pure Go JavaScript interpreter (`otto`) with a simulated DOM environment to execute the scripts and compute the correct answer.
+    *   For **v1 and v2/v3 challenges**, it uses the configured **JavaScript Engine** (either the built-in `otto` or an external runtime like `node`) with a simulated DOM environment to execute the scripts and compute the correct answer.
     *   For **Captcha challenges**, it delegates the site-key to the configured `CaptchaSolver` to get a token.
 5.  **Submission & Cookie Handling:** The solved answer or token is submitted back to Cloudflare. If successful, Cloudflare returns a `cf_clearance` cookie. The scraper's internal `cookiejar` stores this cookie for subsequent requests to the site.
 6.  **Success:** The original request is retried, now with the clearance cookie, and should succeed.
