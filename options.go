@@ -1,4 +1,4 @@
-package main
+package cloudscraper
 
 import (
 	"github.com/Advik-B/cloudscraper/captcha"
