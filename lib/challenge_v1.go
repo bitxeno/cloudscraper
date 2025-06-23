@@ -2,7 +2,7 @@ package cloudscraper
 
 import (
 	"fmt"
-	"github.com/Advik-B/cloudscraper/errors"
+	"github.com/Advik-B/cloudscraper/lib/errors"
 	"github.com/robertkrimen/otto"
 	"regexp"
 	"strings"
@@ -17,19 +17,19 @@ var (
 func solveV1Challenge(body, domain string) (string, error) {
 	matches := jsV1ChallengeRegex.FindStringSubmatch(body)
 	if len(matches) < 2 {
-		return "", fmt.Errorf("could not find Cloudflare v1 JS challenge script: %w", errors.ErrChallenge)
+		return "", fmt.Errorf("could not find Cloudflare lib JS challenge script: %w", errors.ErrChallenge)
 	}
 	challengeScript := matches[1]
 
 	exprMatches := jsV1ExpressionRegex.FindStringSubmatch(challengeScript)
 	if len(exprMatches) < 3 {
-		return "", fmt.Errorf("could not find JS v1 challenge expression: %w", errors.ErrChallenge)
+		return "", fmt.Errorf("could not find JS lib challenge expression: %w", errors.ErrChallenge)
 	}
 
 	obfuscatedJS := exprMatches[2]
 	finalCalcMatches := jsV1PassRegex.FindStringSubmatch(challengeScript)
 	if len(finalCalcMatches) < 2 {
-		return "", fmt.Errorf("could not find JS v1 challenge pass expression: %w", errors.ErrChallenge)
+		return "", fmt.Errorf("could not find JS lib challenge pass expression: %w", errors.ErrChallenge)
 	}
 
 	finalCalc := finalCalcMatches[1]
@@ -40,12 +40,12 @@ func solveV1Challenge(body, domain string) (string, error) {
 
 	result, err := vm.Run(finalCalc)
 	if err != nil {
-		return "", fmt.Errorf("otto: failed to run v1 JS: %w", err)
+		return "", fmt.Errorf("otto: failed to run lib JS: %w", err)
 	}
 
 	floatResult, err := result.ToFloat()
 	if err != nil {
-		return "", fmt.Errorf("otto: could not convert v1 result to float: %w", err)
+		return "", fmt.Errorf("otto: could not convert lib result to float: %w", err)
 	}
 
 	return fmt.Sprintf("%.10f", floatResult), nil

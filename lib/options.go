@@ -1,10 +1,10 @@
 package cloudscraper
 
 import (
-	"github.com/Advik-B/cloudscraper/captcha"
-	"github.com/Advik-B/cloudscraper/proxy"
-	"github.com/Advik-B/cloudscraper/stealth"
-	"github.com/Advik-B/cloudscraper/user_agent"
+	"github.com/Advik-B/cloudscraper/lib/captcha"
+	"github.com/Advik-B/cloudscraper/lib/proxy"
+	"github.com/Advik-B/cloudscraper/lib/stealth"
+	"github.com/Advik-B/cloudscraper/lib/user_agent"
 	"time"
 )
 

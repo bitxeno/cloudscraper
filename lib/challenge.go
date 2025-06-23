@@ -2,7 +2,7 @@ package cloudscraper
 
 import (
 	"fmt"
-	"github.com/Advik-B/cloudscraper/errors"
+	"github.com/Advik-B/cloudscraper/lib/errors"
 	"io"
 	"net/http"
 	"net/url"
@@ -34,9 +34,9 @@ func (s *Scraper) handleChallenge(resp *http.Response) (*http.Response, error) {
 		return s.solveModernJSChallenge(resp, bodyStr)
 	}
 
-	// Check for classic v1 JS challenge
+	// Check for classic lib JS challenge
 	if jsV1DetectRegex.MatchString(bodyStr) {
-		fmt.Println("Classic (v1) JavaScript challenge detected. Solving with Otto...")
+		fmt.Println("Classic (lib) JavaScript challenge detected. Solving with Otto...")
 		return s.solveClassicJSChallenge(resp.Request.URL, bodyStr)
 	}
 
@@ -54,20 +54,20 @@ func (s *Scraper) solveClassicJSChallenge(originalURL *url.URL, body string) (*h
 
 	answer, err := solveV1Challenge(body, originalURL.Host)
 	if err != nil {
-		return nil, fmt.Errorf("v1 challenge solver failed: %w", err)
+		return nil, fmt.Errorf("lib challenge solver failed: %w", err)
 	}
 
 	formMatch := challengeFormRegex.FindStringSubmatch(body)
 	if len(formMatch) < 2 {
-		return nil, fmt.Errorf("v1: could not find challenge form")
+		return nil, fmt.Errorf("lib: could not find challenge form")
 	}
 	vcMatch := jschlVcRegex.FindStringSubmatch(body)
 	if len(vcMatch) < 2 {
-		return nil, fmt.Errorf("v1: could not find jschl_vc")
+		return nil, fmt.Errorf("lib: could not find jschl_vc")
 	}
 	passMatch := passRegex.FindStringSubmatch(body)
 	if len(passMatch) < 2 {
-		return nil, fmt.Errorf("v1: could not find pass")
+		return nil, fmt.Errorf("lib: could not find pass")
 	}
 
 	fullSubmitURL, _ := originalURL.Parse(formMatch[1])

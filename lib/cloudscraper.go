@@ -2,12 +2,12 @@ package cloudscraper
 
 import (
 	"fmt"
-	"github.com/Advik-B/cloudscraper/captcha"
-	"github.com/Advik-B/cloudscraper/errors"
-	"github.com/Advik-B/cloudscraper/proxy"
-	"github.com/Advik-B/cloudscraper/stealth"
-	"github.com/Advik-B/cloudscraper/transport"
-	"github.com/Advik-B/cloudscraper/user_agent"
+	"github.com/Advik-B/cloudscraper/lib/captcha"
+	"github.com/Advik-B/cloudscraper/lib/errors"
+	"github.com/Advik-B/cloudscraper/lib/proxy"
+	"github.com/Advik-B/cloudscraper/lib/stealth"
+	"github.com/Advik-B/cloudscraper/lib/transport"
+	"github.com/Advik-B/cloudscraper/lib/user_agent"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -27,7 +27,7 @@ type Scraper struct {
 	client *http.Client
 	opts   Options
 
-	UserAgent     *useragent.Agent
+	UserAgent     *useragent.useragent
 	CaptchaSolver captcha.Solver
 	ProxyManager  *proxy.Manager
 	StealthMode   *stealth.Mode

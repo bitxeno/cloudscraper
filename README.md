@@ -28,7 +28,7 @@ This library aims for feature-parity with the original Python version, providing
 
 To get the library, use `go get`:
 ```bash
-go get github.com/Advik-B/cloudscraper
+go get github.com/Advik-B/cloudscraper/lib
 ```
 
 ## Basic Usage
@@ -43,7 +43,7 @@ import (
 	"io"
 	"log"
 
-	"github.com/Advik-B/cloudscraper"
+	"github.com/Advik-B/cloudscraper/lib"
 )
 
 func main() {
@@ -88,8 +88,8 @@ Provide a slice of proxy URLs. The manager supports `Sequential` and `Random` ro
 ```go
 import (
     "time"
-    "github.com/Advik-B/cloudscraper"
-    "github.com/Advik-B/cloudscraper/proxy"
+    "github.com/Advik-B/cloudscraper/lib"
+    "github.com/Advik-B/cloudscraper/lib/proxy"
 )
 
 proxies := []string{
@@ -108,8 +108,8 @@ If a site presents a reCaptcha or Turnstile challenge, you can configure a solve
 
 ```go
 import (
-    "github.com/Advik-B/cloudscraper"
-    "github.com/Advik-B/cloudscraper/captcha"
+    "github.com/Advik-B/cloudscraper/lib"
+    "github.com/Advik-B/cloudscraper/lib/captcha"
 )
 
 // Initialize your chosen captcha solver
@@ -127,9 +127,9 @@ You can change the browser identity and tweak stealth options to better suit you
 ```go
 import (
     "time"
-    "github.com/Advik-B/cloudscraper"
-    "github.com/Advik-B/cloudscraper/stealth"
-    useragent "github.com/Advik-B/cloudscraper/user_agent"
+    "github.com/Advik-B/cloudscraper/lib"
+    "github.com/Advik-B/cloudscraper/lib/stealth"
+    useragent "github.com/Advik-B/cloudscraper/lib/user_agent"
 )
 
 sc, err := cloudscraper.New(
@@ -161,10 +161,10 @@ import (
 	"log"
 	"time"
 
-	"github.com/Advik-B/cloudscraper"
-	"github.com/Advik-B/cloudscraper/proxy"
-	"github.com/Advik-B/cloudscraper/stealth"
-	useragent "github.com/Advik-B/cloudscraper/user_agent"
+	"github.com/Advik-B/cloudscraper/lib"
+	"github.com/Advik-B/cloudscraper/lib/proxy"
+	"github.com/Advik-B/cloudscraper/lib/stealth"
+	useragent "github.com/Advik-B/cloudscraper/lib/user_agent"
 )
 
 func main() {
@@ -176,7 +176,7 @@ func main() {
 		proxy.Random,
 		5*time.Minute,
 	))
-	
+
 	// Customize the browser
 	scraperOptions = append(scraperOptions, cloudscraper.WithBrowser(useragent.Config{
 		Browser:  "chrome",
@@ -185,9 +185,9 @@ func main() {
 
 	// Customize session handling
 	scraperOptions = append(scraperOptions, cloudscraper.WithSessionConfig(
-		true,          // Auto-refresh on 403s
+		true,           // Auto-refresh on 403s
 		30*time.Minute, // Refresh session every 30 mins
-		5,             // Max 403 retries
+		5,              // Max 403 retries
 	))
 
 	// Create the scraper with all our options
@@ -202,7 +202,7 @@ func main() {
 		log.Fatal(err)
 	}
 	defer resp.Body.Close()
-	
+
 	fmt.Println("Success:", resp.Status)
 }
 ```
