@@ -1,13 +1,20 @@
 package js
 
 import (
+	_ "embed"
 	"fmt"
+	"github.com/Advik-B/cloudscraper/lib/errors"
 	"log"
 	"strings"
 	"time"
 
 	"github.com/robertkrimen/otto"
 )
+
+// Create a Simulated Browser Environment (DOM Shim)
+//
+//go:embed setup.js
+var setupScript string
 
 // OttoEngine uses the embedded otto interpreter.
 type OttoEngine struct{}
@@ -21,6 +28,8 @@ func NewOttoEngine() *OttoEngine {
 func (e *OttoEngine) Run(script string) (string, error) {
 	vm := otto.New()
 	var result string
+
+	// Setup safe console.log capturing
 	err := vm.Set("console", map[string]interface{}{
 		"log": func(call otto.FunctionCall) otto.Value {
 			result = call.Argument(0).String()
@@ -31,8 +40,34 @@ func (e *OttoEngine) Run(script string) (string, error) {
 		return "", fmt.Errorf("otto: failed to set console.log: %w", err)
 	}
 
-	// Security: This executes JavaScript from the Cloudflare challenge.
-	// The otto VM is sandboxed, but this is an inherent risk.
+	// === Hardened Execution ===
+	const maxExecutionTime = 3 * time.Second
+	vm.Interrupt = make(chan func(), 1)
+	watchdogDone := make(chan struct{})
+	defer close(watchdogDone)
+
+	// Watchdog goroutine to interrupt runaway code
+	go func() {
+		select {
+		case <-time.After(maxExecutionTime):
+			vm.Interrupt <- func() {
+				panic(errors.ErrExecutionTimeout)
+			}
+		case <-watchdogDone:
+		}
+	}()
+
+	// Recover from intentional interrupts
+	defer func() {
+		if r := recover(); r != nil {
+			if r == errors.ErrExecutionTimeout {
+				err = fmt.Errorf("otto: script execution timed out after %v", maxExecutionTime)
+			} else {
+				panic(r) // Bubble up unexpected panics
+			}
+		}
+	}()
+
 	_, err = vm.Run(script)
 	if err != nil {
 		return "", fmt.Errorf("otto: script execution failed: %w", err)
@@ -45,35 +80,6 @@ func (e *OttoEngine) Run(script string) (string, error) {
 func (e *OttoEngine) SolveV2Challenge(body, domain string, scriptMatches [][]string, logger *log.Logger) (string, error) {
 	vm := otto.New()
 
-	// Create a Simulated Browser Environment (DOM Shim)
-	setupScript := `
-		var window = this;
-		var navigator = { userAgent: "" };
-		var document = {
-			getElementById: function(id) {
-				return { value: "" };
-			},
-			createElement: function(tag) {
-				return {
-					firstChild: { href: "https://` + domain + `/" }
-				};
-			},
-			cookie: ""
-		};
-		var atob = function(str) {
-			var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
-			var a, b, c, d, e, f, g, i = 0, result = '';
-			str = str.replace(/[^A-Za-z0-9\+\/\=]/g, '');
-			do {
-				a = chars.indexOf(str.charAt(i++)); b = chars.indexOf(str.charAt(i++)); c = chars.indexOf(str.charAt(i++)); d = chars.indexOf(str.charAt(i++));
-				e = a << 18 | b << 12 | c << 6 | d; f = e >> 16 & 255; g = e >> 8 & 255; a = e & 255;
-				result += String.fromCharCode(f);
-				if (c != 64) result += String.fromCharCode(g);
-				if (d != 64) result += String.fromCharCode(a);
-			} while (i < str.length);
-			return result;
-		};
-	`
 	// Security: Running setup script in VM.
 	if _, err := vm.Run(setupScript); err != nil {
 		return "", fmt.Errorf("otto: failed to set up DOM shim: %w", err)
