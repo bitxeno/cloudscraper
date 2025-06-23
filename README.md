@@ -29,7 +29,7 @@ This library aims for feature-parity with the original Python version, providing
 
 To get the latest version of the library, use `go get`:
 ```bash
-go get github.com/Advik-B/cloudscraper@
+go get github.com/Advik-B/cloudscraper/lib
 ```
 
 ## Basic Usage
