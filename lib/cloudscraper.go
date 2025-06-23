@@ -9,7 +9,6 @@ import (
 	"github.com/Advik-B/cloudscraper/lib/transport"
 	"github.com/Advik-B/cloudscraper/lib/user_agent"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -180,7 +179,7 @@ func (s *Scraper) do(req *http.Request) (*http.Response, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
-	resp.Body = ioutil.NopCloser(strings.NewReader(string(bodyBytes)))
+	resp.Body = io.NopCloser(strings.NewReader(string(bodyBytes)))
 
 	if isChallengeResponse(resp, bodyBytes) {
 		fmt.Println("Cloudflare protection detected, attempting to bypass...")
