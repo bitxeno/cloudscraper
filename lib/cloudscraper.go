@@ -147,6 +147,11 @@ func (s *Scraper) Post(url, contentType string, body io.Reader) (*http.Response,
 	return s.do(req)
 }
 
+// Performs a request.
+func (s *Scraper) Send(req *http.Request) (*http.Response, error) {
+	return s.do(req)
+}
+
 func (s *Scraper) do(req *http.Request) (*http.Response, error) {
 	s.mu.Lock()
 	if s.shouldRefreshSession() {
