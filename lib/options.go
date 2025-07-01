@@ -67,9 +67,10 @@ func WithStealth(opts stealth.Options) ScraperOption {
 }
 
 // WithSessionConfig configures session handling.
-func WithSessionConfig(refreshOn403 bool, interval time.Duration, maxRetries int) ScraperOption {
+func WithSessionConfig(refreshOn403 bool, refreshSession bool, interval time.Duration, maxRetries int) ScraperOption {
 	return func(o *Options) {
 		o.AutoRefreshOn403 = refreshOn403
+		o.AutoRefreshSession = refreshSession
 		o.SessionRefreshInterval = interval
 		o.Max403Retries = maxRetries
 	}
