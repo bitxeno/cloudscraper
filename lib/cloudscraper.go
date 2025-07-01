@@ -18,7 +18,7 @@ import (
 	"github.com/Advik-B/cloudscraper/lib/proxy"
 	"github.com/Advik-B/cloudscraper/lib/stealth"
 	"github.com/Advik-B/cloudscraper/lib/transport"
-	"github.com/Advik-B/cloudscraper/lib/user_agent"
+	useragent "github.com/Advik-B/cloudscraper/lib/user_agent"
 
 	"github.com/andybalholm/brotli"
 	"golang.org/x/net/publicsuffix"
@@ -48,6 +48,7 @@ func New(opts ...ScraperOption) (*Scraper, error) {
 	options := Options{
 		MaxRetries:             3,
 		AutoRefreshOn403:       true,
+		AutoRefreshSession:     true,
 		SessionRefreshInterval: 1 * time.Hour,
 		Max403Retries:          3,
 		RotateTlsCiphers:       true,
@@ -261,6 +262,9 @@ func (s *Scraper) handle403(req *http.Request) (*http.Response, error) {
 }
 
 func (s *Scraper) shouldRefreshSession() bool {
+	if !s.opts.AutoRefreshSession {
+		return false
+	}
 	return time.Since(s.sessionStartTime) > s.opts.SessionRefreshInterval
 }
 

@@ -1,9 +1,10 @@
 package cloudscraper
 
 import (
-	useragent "github.com/Advik-B/cloudscraper/lib/user_agent"
 	"log"
 	"time"
+
+	useragent "github.com/Advik-B/cloudscraper/lib/user_agent"
 
 	"github.com/Advik-B/cloudscraper/lib/captcha"
 	"github.com/Advik-B/cloudscraper/lib/js"
@@ -16,6 +17,7 @@ type Options struct {
 	MaxRetries             int
 	Delay                  time.Duration
 	AutoRefreshOn403       bool
+	AutoRefreshSession     bool
 	SessionRefreshInterval time.Duration
 	Max403Retries          int
 	Browser                useragent.Config
